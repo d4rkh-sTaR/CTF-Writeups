@@ -1,85 +1,74 @@
-# Recruit
+# TryHackMe: Recruit Web Challenge (Write-up)
 
-## Introduction
+## 🛡️ Introduction
+Hey! I'm Madhav, a cybersecurity enthusiast and student. This write-up covers my manual exploitation of the **Recruit** room on TryHackMe. This was a particularly rewarding challenge as I completed it without any external write-ups, focusing on manual enumeration and exploitation techniques.
 
-Hey! My name is Madhav and I just love doing CTFs. This is one of the few CTFs I did without reading any write ups (well there were no write ups released at the time). So this is a medium-level room on [TryHackMe][https://tryhackme.com/room/recruitwebchallenge] in which we have to find vulnerabilities in a web application named **Recruit** which basically is an application for HR to manage CVs of applicants.
+**Room Link:** [Recruit](https://tryhackme.com/room/recruitwebchallenge)  
+**Difficulty:** Medium
 
-# Challenge Overview
+---
 
-- Room: Recruit ([TryHackMe][https://tryhackme.com])
-- Difficulty: Medium
-- Objective: Gain admin access to the web application
+## 🎯 Challenge Overview
+The target is a web application named **Recruit**, designed for HR departments to manage applicant CVs. The end goal was to escalate privileges and gain administrative access.
 
-# Methodology & Exploitation
+*   **Objective:** Obtain the User and Root flags.
+*   **Techniques:** Directory Bruteforcing, Local File Inclusion (LFI/SSRF), and Manual Union-Based SQL Injection.
 
-I opened the target application on the browser and saw two things:
-	- A Login Form
-	- An API docs link for "Access API"
+---
 
-I ran gobuster on it too look for any other directories
+## 🔍 Methodology & Exploitation
 
-![Mail-Dir][./Screenshots/Mail-Dir.png]
+### 1. Initial Reconnaissance
+Upon navigating to the target IP, I identified two primary entry points:
+1.  A standard **Login Form**.
+2.  An **Access API** documentation link.
 
-This mail directory looked interesting so I opened it and found a file named mail.log
+I performed directory brute-forcing using `gobuster` to find hidden paths:
+![Mail-Dir](./Screenshots/Mail-Dir.png)
 
-![mail-log][mail-log.png]
+I discovered a `/mail` directory containing a `mail.log` file. Analyzing this log revealed a username `hr` and a hint that the password was stored in the server's `config.php` file.
 
-Yeah! So found a user named hr and it's password is stored in the **config.php** file. Now we look at the target web page.
+### 2. Exploiting the Access API (LFI/SSRF)
+The "Access API" documentation showed an endpoint that supports fetching external URLs. I tested for **Server-Side Request Forgery (SSRF)** and **Local File Inclusion (LFI)**. 
 
-![Screenshot][./Screenshots/Login-Page.png]
+While certain filters were in place, I was able to successfully request the local `config.php` file through the API:
+![HR-PASSWD](./Screenshots/hr-password.png)
 
-I thought of bruteforcing the password for hr but I thought first I should try looking for it instead. So I moved on to the API docs for the "AccessAPI"
+**Result:** Obtained the cleartext password for the `hr` user.
 
-![AccessAPI][./Screenshots/AccessAPI.png]
+### 3. Privilege Escalation: Horizontal (Login as HR)
+Using the discovered credentials, I logged in as the `hr` user and captured the first flag.
+![User-Flag](./Screenshots/flag-1.png)
 
-I saw this API endpoint and as it also supports external URLs, I tried for SSRF on the file but it had some filters.
+### 4. Advanced Exploitation: Manual SQL Injection
+The dashboard featured a search bar to filter candidates. I immediately tested for **SQL Injection (SQLi)** by inputting a single quote `'`. The server returned an **Error-Based SQLi** response, confirming the vulnerability.
 
-![File-PHP][./Screenshots/File-PHP.png]
+To build a precise payload, I used the Access API again to read the source code of `dashboard.php`, allowing me to see the exact SQL query structure:
+![SQL-QUERY](./Screenshots/sql-query.png)
 
-Then I thought what if I can access config.php file from this API, so I put in the file name and BOOM! we got the password for the hr user!
+#### The Breakthrough
+Standard payloads using `--` for comments failed. Through manual testing, I realized the backend was using `#` for commenting. I then moved to a **Union-Based SQLi** to dump the database:
 
-![HR-PASSWD][hr-password.png]
+1.  **Table Enumeration:** Identified the `users` table.
+2.  **Data Extraction:** Dumped the `administrator` credentials.
 
-I have redacted the password for obvious reasons, let's login as hr and get the first flag!!!
+![Admin-creds](./Screenshots/Admin-creds.png)
 
-![User-Flag][./flag-1.png]
+### 5. Final Escalation: Vertical (Admin Access)
+With the administrator credentials in hand, I logged into the admin panel and successfully retrieved the root flag.
+![Admin-flag](./Screenshots/admin-flag.png)
 
-Here we can search for candidates with their names, so I immediately thought of SQL injection.
+---
 
-![SQLi-TRY][./sqli-try.png]
+## 📝 Summary of Vulnerabilities
 
-and BOOM!! it's and Error-Based SQL injection, which should not be too hard to exploit. I thought if we can get the config.php from the AccessAPI then why not the dashboard.php too, and guess what? we got the source code for dashboard.php using that API. Here we can see the SQL query used to get the users from the database.
+### Access API (LFI/SSRF)
+*   **Vulnerability:** Improper input validation on the API endpoint.
+*   **Impact:** Allowed unauthorized reading of local configuration files (`config.php`) and server-side source code (`dashboard.php`).
 
-![SQL-QUERY][./sql-query.png]
+### Search Functionality (SQL Injection)
+*   **Vulnerability:** Unsanitized user input in the candidate search bar.
+*   **Impact:** Allowed for a full database dump, leading to a complete takeover of the administrator account.
 
-So keeping in mind the query I tried some payloads.
-
-![TryingPayload1][./Trying-Payload-1.png]
-
-Oh no! why does it not work! I thought for a while and tried different payloads but then I thought maybe something else is used for commenting instead of '--', then I got it! it uses '#' for commenting.
-
-![SuccessPayload1][success-payload-1.png]
-
-Yeah!!! we successfully found and exploit SQL injection. Now it's just the matter of dumping the whole database to get the credentials for the administrator. Let's first get the name of the table, I used **Union Based SQLi** to dump the database.
-
-![TableName][table-name.png]
-
-Found the table 'users', yeah it was kinda obvious ig, let's just dump the database and get the administrator credentials.
-
-![AdminCreds][./Admin-creds.png]
-
-Yeah!! got the administrator credentials, let's go login as administrator and get the root flag!
-
-![AdminFlag][./admin-flag.png]
-
-Yeah!! got the root flag for the challenge!
-
-# Summary
-
-## AccessAPI
-
-- Found an SSRF vulnerability in the AccessAPI through which got the password for the user 'hr' and also found the source code for the dashboard.php which had the SQL query for the search functionality.
-
-## Search Candidate 
-
-- Found an SQL injection vulnerebility on the search bar to search for candidates, dumped the db to get the creadentials for the administrator user and logged in as admin to get the root flag.
+---
+*Created by Madhav Purohit - 2026*
