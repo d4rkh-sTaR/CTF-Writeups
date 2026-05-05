@@ -24,7 +24,7 @@ Upon navigating to the target IP, I identified two primary entry points:
 2.  An **Access API** documentation link.
 
 I performed directory brute-forcing using `gobuster` to find hidden paths:
-![Mail-Dir](./Screenshots/Mail-Dir.png)
+![Mail-Dir](./Screenshots/mail-dir.png)
 
 I discovered a `/mail` directory containing a `mail.log` file. Analyzing this log revealed a username `hr` and a hint that the password was stored in the server's `config.php` file.
 
