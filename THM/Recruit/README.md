@@ -52,7 +52,7 @@ Standard payloads using `--` for comments failed. Through manual testing, I real
 1.  **Table Enumeration:** Identified the `users` table.
 2.  **Data Extraction:** Dumped the `administrator` credentials.
 
-![Admin-creds](./Screenshots/Admin-creds.png)
+![Admin-creds](./Screenshots/admin-creds.png)
 
 ### 5. Final Escalation: Vertical (Admin Access)
 With the administrator credentials in hand, I logged into the admin panel and successfully retrieved the root flag.
