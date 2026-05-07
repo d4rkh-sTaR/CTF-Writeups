@@ -73,7 +73,7 @@ Ans: `Ubuntu 16.04`
 
 We can get Dennis's password by using the following SQL query in the 'id' get parameter, it was actually the only password in the database : 1 UNION SELECT 1,password,3,4,5 FROM users
 
-![dennis-pass][dennis-pass.png)
+![dennis-pass](./Screenshots/dennis-pass.png)
 
 Ans: `REDACTED`
 
